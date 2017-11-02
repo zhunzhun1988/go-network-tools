@@ -51,7 +51,7 @@ exitFor:
 
 			_, err := net.DialTimeout("tcp", addr, time.Duration(timeout)*time.Second)
 			if err != nil {
-				//log.MyLogI("[%s] tcp port [%d] is not open", task.ip, task.port)
+				log.MyLogS("[%s] tcp port [%d] is not open", task.ip, task.port)
 			} else {
 				log.MyLogI("[%s] tcp port [%d] is open", task.ip, task.port)
 			}
@@ -79,7 +79,6 @@ func (s *Scanner) producer() {
 		eport = *endport
 	}
 	cmp := utils.IPCmp(sip, eip)
-	fmt.Printf("cmp=%d\n", cmp)
 	if cmp == -2 {
 		close(s.taskCh)
 		return
@@ -114,6 +113,7 @@ func (s *Scanner) Run() {
 }
 
 func main() {
+	defer log.Clean()
 	flag.Parse()
 	utils.CheckError(checkArgs())
 	scanner := &Scanner{
