@@ -6,6 +6,7 @@ import (
 	"go-network-tools/utils"
 	"go-network-tools/utils/log"
 	"net"
+	"strings"
 	"sync"
 	"time"
 )
@@ -17,6 +18,7 @@ var (
 	endport   = flag.Int("endport", -1, "scan end port")
 	threadnum = flag.Int("threadnum", 100, "number goroutine to run")
 	timeout   = flag.Int("timeout", 10, "connect port timeout second")
+	checkSSH  = flag.Bool("checkssh", true, "check whether the port is ssh port")
 )
 
 func checkArgs() error {
@@ -39,6 +41,15 @@ type Scanner struct {
 	numGorotine int
 }
 
+func isSSHConn(conn net.Conn) bool {
+	buf := make([]byte, 30)
+	n, err := conn.Read(buf)
+	if n > 0 && err == nil && strings.Contains(string(buf), "SSH") {
+		return true
+	}
+	return false
+}
+
 func worker(id, timeout int, ch chan scanTask, wg *sync.WaitGroup) {
 exitFor:
 	for {
@@ -49,11 +60,17 @@ exitFor:
 			}
 			addr := fmt.Sprintf("%s:%d", task.ip, task.port)
 
-			_, err := net.DialTimeout("tcp", addr, time.Duration(timeout)*time.Second)
+			conn, err := net.DialTimeout("tcp", addr, time.Duration(timeout)*time.Second)
+
 			if err != nil {
 				log.MyLogS("[%s] tcp port [%d] is not open", task.ip, task.port)
 			} else {
-				log.MyLogI("[%s] tcp port [%d] is open", task.ip, task.port)
+				defer conn.Close()
+				if *checkSSH == true && isSSHConn(conn) {
+					log.MyLogI("[%s] tcp port [%d] is open is SSH port", task.ip, task.port)
+				} else {
+					log.MyLogI("[%s] tcp port [%d] is open", task.ip, task.port)
+				}
 			}
 			/*_, err = net.Dial("udp", addr)
 			if err != nil {
