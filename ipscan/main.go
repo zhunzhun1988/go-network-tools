@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"golang.org/x/crypto/ssh"
 )
 
 var (
@@ -19,6 +20,8 @@ var (
 	threadnum = flag.Int("threadnum", 100, "number goroutine to run")
 	timeout   = flag.Int("timeout", 10, "connect port timeout second")
 	checkSSH  = flag.Bool("checkssh", true, "check whether the port is ssh port")
+	sshuser = flag.String("sshuser", "root", "scan ssh user")
+	sshpasswd = flag.String("sshpasswd", "123456", "scan ssh password")
 )
 
 func checkArgs() error {
@@ -50,6 +53,23 @@ func isSSHConn(conn net.Conn) bool {
 	return false
 }
 
+func checkSSHPasswd(ip string , port int,user, password string) bool {
+	PassWd := []ssh.AuthMethod{ssh.Password(password)}
+	Conf := ssh.ClientConfig{
+	User: user, 
+	Auth: PassWd,
+	HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+            return nil
+        },
+	}
+	Client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", ip, port), &Conf)
+	if err != nil { 
+		return false
+	}
+	defer Client.Close()
+	return true
+}
+
 func worker(id, timeout int, ch chan scanTask, wg *sync.WaitGroup) {
 exitFor:
 	for {
@@ -67,7 +87,12 @@ exitFor:
 			} else {
 				defer conn.Close()
 				if *checkSSH == true && isSSHConn(conn) {
-					log.MyLogI("[%s] tcp port [%d] is open is SSH port", task.ip, task.port)
+					if checkSSHPasswd(task.ip, task.port ,*sshuser, *sshpasswd) {
+						log.MyLogI("[%s] tcp port [%d] is open is SSH port and password is %s:%s", task.ip, task.port ,*sshuser, *sshpasswd)
+					} else {
+						log.MyLogI("[%s] tcp port [%d] is open is SSH port", task.ip, task.port)
+					}
+					
 				} else {
 					log.MyLogI("[%s] tcp port [%d] is open", task.ip, task.port)
 				}
