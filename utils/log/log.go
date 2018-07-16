@@ -21,6 +21,10 @@ const (
 var statuLog string = ""
 var lock sync.Mutex
 
+func EnableDebug(v bool) {
+	debug = v
+}
+
 func MyLogS(format string, a ...interface{}) {
 	myLog(STATUE, format, a...)
 }
